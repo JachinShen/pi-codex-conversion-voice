@@ -34,6 +34,12 @@ Run `node tests/voice-lan-browser-harness.mjs` after building for manual CDP che
 
 Before this UI change, compared the bundled Codex provider with the stock Pi peer: standard Responses fields, reasoning/service tier, headers/transport, terminal stream checks and retry behavior. Existing fork differences (Lite/turn metadata, full-request retries and sticky SSE) remain unchanged; this UI commit changes no provider request/auth/transport code or native/audio helpers.
 
+## Unicode generation regression
+
+The HTML template in `src/voice/lan/web-ui.ts` must be a cooked template, not `String.raw`: Pi's runtime ASCII transform can turn Chinese into Unicode escapes, which raw HTML exposes literally. The tsc-only build did not reproduce this. Embedded JavaScript source remains raw intentionally, so its escapes are interpreted by the browser JavaScript parser; never decode user/model text or replace `textContent` with HTML rendering.
+
+`tests/voice-lan-unicode.test.ts` bundles the real generator with esbuild `charset: ascii` and checks Chinese HTML plus embedded script syntax. Run `node tests/voice-lan-unicode-harness.mjs` from this repository, then evaluate the exported `verifyUnicodeDom` from `tests/voice-lan-unicode-dom.mjs` in a new isolated CDP page at `http://127.0.0.1:43129/`. This checks Chinese labels, placeholder, streaming status, error text, literal `\\u4F60`, and XSS via actual DOM. The fixture stubs events/network/audio; never point it at an active voice page. Audio and user/model text processing are unchanged.
+
 ## Validation
 
 Unpack the original 3.0.10 npm archive into a separate directory, then run:

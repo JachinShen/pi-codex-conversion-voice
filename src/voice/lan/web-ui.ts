@@ -4,7 +4,9 @@ import { resolveLanVoiceWebTheme } from "./theme.ts";
 
 export function createLanVoiceWebUi(piTheme: Theme): string {
 	const theme = resolveLanVoiceWebTheme(piTheme);
-	return String.raw`<!doctype html>
+	// HTML is cooked text, not JavaScript source: runtime ASCII transforms may
+	// escape Unicode in templates. String.raw would expose those escapes in DOM.
+	return `<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
