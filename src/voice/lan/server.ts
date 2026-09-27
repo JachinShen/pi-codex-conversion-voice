@@ -185,6 +185,8 @@ export async function startCodexLanVoiceServer(options: {
 	let closePromise: Promise<void> | undefined;
 	const closeServer = async (): Promise<void> => {
 		closing = true;
+		// Clear connected pages immediately on session teardown, even if no new LAN server starts.
+		transcript.reset();
 		removeInputMuteListener();
 		removeTranscriptListener();
 		conversationStart?.abort.abort();

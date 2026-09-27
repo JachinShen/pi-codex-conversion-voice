@@ -165,5 +165,10 @@ test("real HTTPS/SSE emits live records, no history endpoint or replay, clears e
 			await http('/api/history');
 			assert.doesNotMatch(JSON.stringify(first.events),/desktop SECRET/);
 		} finally {socket.terminate();}
+		const lastEpoch=first.events.filter(e=>e.type==='transcript.epoch').at(-1).epoch;
+		first.events.length=0;
+		const cleared=first.wait('transcript.epoch');
+		await server.close();
+		assert.notEqual((await cleared).epoch,lastEpoch);
 	}finally{for(const stream of streams)stream.close();await server.close();await rm(dir,{recursive:true,force:true});}
 });
