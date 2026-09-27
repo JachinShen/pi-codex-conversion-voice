@@ -1,6 +1,7 @@
 import { createServer } from "node:https";
 import { WebSocketServer } from "ws";
 import { LanVoiceActivity } from "./activity.js";
+import { LanVoiceTranscript } from "./transcript.js";
 import { createLanVoiceWebManifest } from "./app-assets.js";
 import { LanHostRealtimePeer } from "./browser-peer.js";
 import { LanVoiceBrowserClients, MAX_CONTROL_BYTES } from "./browser-clients.js";
@@ -23,9 +24,10 @@ export async function startCodexLanVoiceServer(options) {
         initialWorking: !options.ctx.isIdle(),
         publish: (message) => clients.broadcastControl(message),
     });
+    const transcript = new LanVoiceTranscript((event) => clients.broadcastControl(event));
     const draft = new LanVoiceDraft({
         publish: (message) => clients.broadcastControl(message),
-        sendMessage: options.sendUserMessage,
+        sendMessage: (text) => { options.sendUserMessage(text); transcript.finalized(text, "user", "text"); },
     });
     const dictation = new LanVoiceDictation({
         resolveAuth: options.resolveAuth,
@@ -113,9 +115,14 @@ export async function startCodexLanVoiceServer(options) {
         onDictationAudio: (clientId, pcm) => dictation.append(clientId, pcm),
     });
     const removeInputMuteListener = options.voice.onInputMuteChange((muted) => clients.broadcastControl({ type: "mute", muted }));
+    const removeTranscriptListener = options.voice.onTranscript((role, text) => {
+        if (activeConversation && options.voice.isCurrentConversation(activeConversation.conversation) && ownerIsActive() && !closing)
+            transcript.finalized(text, role, "voice");
+    });
     const server = createServer({ cert: certificate.cert, key: certificate.key }, (request, response) => {
         void handleLanVoiceHttpRequest(request, response, {
             activity,
+            transcript,
             clients,
             draft,
             inputMuted: () => options.voice.inputMuted,
@@ -147,6 +154,7 @@ export async function startCodexLanVoiceServer(options) {
     }
     catch (error) {
         removeInputMuteListener();
+        removeTranscriptListener();
         const clientsClosing = clients.close();
         webSockets.close();
         server.closeAllConnections();
@@ -160,6 +168,7 @@ export async function startCodexLanVoiceServer(options) {
     const closeServer = async () => {
         closing = true;
         removeInputMuteListener();
+        removeTranscriptListener();
         conversationStart?.abort.abort();
         conversationStart = undefined;
         clearInterval(heartbeat);
@@ -184,7 +193,11 @@ export async function startCodexLanVoiceServer(options) {
         ownerSessionId: options.ownerSessionId,
         urls,
         agentStarted: () => activity.working(),
-        agentSettled: (text) => activity.settled(text),
+        assistantStarted: () => transcript.assistantStart(),
+        assistantText: (parts, final) => { if (ownerIsActive() && !closing)
+            transcript.assistant(parts, final); },
+        resetTranscript: () => { transcript.reset(); activity.settled(); },
+        agentSettled: () => activity.settled(),
         close() {
             closePromise ??= closeServer();
             return closePromise;

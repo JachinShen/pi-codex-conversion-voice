@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { LanVoiceBrowserClients } from "./browser-clients.ts";
 import type { LanVoiceActivity } from "./activity.ts";
+import type { LanVoiceTranscript } from "./transcript.ts";
 import { getLanVoiceAppAsset } from "./app-assets.ts";
 import { LanVoiceDraftError, type LanVoiceDraft } from "./draft.ts";
 
@@ -8,6 +9,7 @@ const MAX_REQUEST_BYTES = 300 * 1024;
 
 export interface LanVoiceHttpHandlers {
 	activity: LanVoiceActivity;
+	transcript?: LanVoiceTranscript;
 	clients: LanVoiceBrowserClients;
 	draft: LanVoiceDraft;
 	renderManifest(): string;
@@ -55,7 +57,10 @@ export async function handleLanVoiceHttpRequest(
 			response.write("event: ready\ndata: {}\n\n");
 			handlers.clients.connectEvents(clientId, response);
 			handlers.clients.sendControl(clientId, handlers.draft.snapshot());
-			handlers.clients.sendControl(clientId, handlers.activity.snapshot());
+			// Only identity is replayed. A new browser never receives earlier transcript text.
+			if (handlers.transcript) handlers.clients.sendControl(clientId, handlers.transcript.identity());
+			const activity = handlers.activity.snapshot();
+			handlers.clients.sendControl(clientId, { type: "activity", state: activity.state });
 			handlers.clients.sendControl(clientId, { type: "mute", muted: handlers.inputMuted() });
 			return;
 		}

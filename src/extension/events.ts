@@ -119,7 +119,10 @@ export function registerCodexEvents(
 			void runtime.startPrewarm(ctx, codeMode.refreshPromptTools(ctx.getSystemPrompt(), ctx));
 	});
 
+	pi.on("session_tree", async () => { runtime.lanVoice.resetTranscript(); });
+
 	pi.on("message_start", async (event) => {
+		if (event.message.role === "assistant") runtime.lanVoice.assistantStarted();
 		if (event.message.role !== "toolResult" && !isToolCallOnlyAssistantMessage(event.message)) tracker.resetExplorationGroup();
 	});
 	pi.on("message_end", async (event) => {
@@ -174,7 +177,10 @@ export function registerCodexEvents(
 	});
 	pi.on("message_update", async (event) => {
 		const update = event.assistantMessageEvent;
-		if (update.type === "text_delta" && typeof update.delta === "string") runtime.voice.streamDelta(update.delta);
+		if (update.type === "text_delta" && typeof update.delta === "string") {
+			runtime.voice.streamDelta(update.delta);
+			if (event.message.role === "assistant") runtime.lanVoice.assistantUpdate(event.message);
+		}
 	});
 	pi.on("agent_start", async () => { runtime.voice.agentStarted(); runtime.lanVoice.agentStarted(); });
 	pi.on("agent_settled", async () => {

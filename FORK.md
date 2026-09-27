@@ -1,4 +1,4 @@
-# Browser playback fork (Git-only release candidate)
+# Browser playback and compact LAN UI fork (Git-only)
 
 This is the **complete** `@howaboua/pi-codex-conversion` package, not a standalone voice replacement. Use `voiceFeaturesOnly: true` in the extension settings when only voice is wanted. All runtime dependencies and all shipped native tools/voice helpers remain included. Requires Node >=22.19.0 and the peer Pi versions declared in package.json.
 
@@ -19,6 +19,20 @@ The release tree starts with the original npm archive (including prebuilt multi-
 `browser-playback-fix/` contains the original patch and 14 synthetic PCM regressions. Only the audio worklet source and matching compiled worklet change playback behavior. The bounded playback queue fixes large-chunk truncation and end-of-buffer loss, with explicit buffering/recovery limits. No credentials, audio recordings, server deployment settings or user-specific paths are included.
 
 Root package.json still identifies the upstream package/version for compatibility; `private: true` and a failing prepublishOnly prevent accidental publication under upstream's npm name. Git commit is the fork version. Git installation loads `./dist/index.js` through the `pi.extensions` manifest. Production Git installation uses the committed, source-matched `dist` without a `prepare` hook: Pi 0.84.2 defaults to `npm install --omit=dev`, which does not install the development TypeScript compiler. Developers explicitly run `npm run build`; `prepack` still builds and requires development dependencies. Neither implies the upstream full test suite passed. The monorepo-only extension verification script is removed. Build inputs and dependencies are pinned in package-lock.json; the installation regression deliberately uses Pi's real default command rather than substituting `npm ci` or global settings.
+
+## Compact LAN UI and live-only transcript
+
+The production `web-ui` now uses the approved compact mobile layout: thin status bar, left/right text bubbles without per-message role labels, one-line composer, 44px touch targets, local pagination, scroll anchors and unread/back-to-bottom. Its production audio controller and composer are unchanged: microphone permission/device setup, mode selection (under the overflow menu), connect/end, mute, dictation and draft revision/conflict semantics remain real, not demo controls.
+
+Only records received by the current page are accumulated in memory: at most 30 messages, 16 KiB UTF-8 text per message and 128 KiB serialized records total. Pi assistant text snapshots stream into one local message ID with monotonic revisions; voice user/assistant finalizations and successful LAN text submissions get independent local IDs. Voice callbacks are scoped to the actual current LAN conversation; delegation messages and transcript/context tails are not mirrored. Pi tools, thinking, auth, summaries and system context are never projected. These are live projection IDs, not persisted Pi entry IDs. Working/settled only affect status. Tree navigation resets the epoch; session replacement/reload tears down the server. Rendering uses `textContent`; slow SSE consumers are disconnected rather than accumulating unbounded queues.
+
+**Not full session history:** no `getBranch()` export, session-file reader, history HTTP endpoint, localStorage or initial replay. Refreshing clears the page history; SSE reconnect retains already received rows in that same page but missed records are not recovered. Older-page loading only reveals up to 30 locally retained records. Terminal-origin user prompts are not imported. The existing LAN transport is still **not authenticated**; client IDs are not credentials. Keep it on a trusted LAN and do not expose it publicly. Pairing authorization must precede any future historical export.
+
+Validation includes TypeScript/build, voice/LAN tests (including real HTTPS/SSE against an inert fake voice controller), the 14 original synthetic PCM regressions, and an isolated CDP page using the actual production HTML and a loopback fake backend. Browser checks cover 320px/390px widths, touch targets, pagination, a zero-pixel anchor shift at retention capacity, unread/back-to-bottom, stable streamed IDs, XSS, actual draft submission and audio control state transitions using stub devices/WebSocket. No paid speech service or physical microphone is used. The standalone fork has no root `knip` script (the upstream monorepo instruction cannot run here); typecheck/build pass. The full unrelated upstream suite is not claimed.
+
+Run `node tests/voice-lan-browser-harness.mjs` after building for manual CDP checks; it logs a random loopback-only test URL. `/test/emit` exists only in that test harness, never in the production server. Neither fixture data nor demo subscriptions ship in the production HTML.
+
+Before this UI change, compared the bundled Codex provider with the stock Pi peer: standard Responses fields, reasoning/service tier, headers/transport, terminal stream checks and retry behavior. Existing fork differences (Lite/turn metadata, full-request retries and sticky SSE) remain unchanged; this UI commit changes no provider request/auth/transport code or native/audio helpers.
 
 ## Validation
 

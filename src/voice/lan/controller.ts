@@ -4,7 +4,6 @@ import type { CodexConversionConfig } from "../../adapter/activation/config.ts";
 import { resolveCodexVoiceAuth } from "../auth.ts";
 import type { CodexVoiceController } from "../controller.ts";
 import type { CodexLanVoiceServer } from "./server.ts";
-import { boundedAssistantText } from "./activity.ts";
 
 export interface CodexLanVoiceServerStatus {
 	running: boolean;
@@ -17,7 +16,6 @@ export class CodexLanVoiceServerController {
 	private readonly sendUserMessage: (text: string, ctx: ExtensionContext) => void;
 	private readonly agentDir: string;
 	private server: CodexLanVoiceServer | undefined;
-	private pendingAssistantText: string | undefined;
 	private operation = Promise.resolve();
 
 	constructor(
@@ -76,27 +74,30 @@ export class CodexLanVoiceServerController {
 
 	agentStarted(): void {
 		if (!this.server) return;
-		this.pendingAssistantText = undefined;
 		this.server.agentStarted();
+	}
+
+	assistantStarted(): void { this.server?.assistantStarted(); }
+
+	assistantUpdate(message: AssistantMessage): void { this.server?.assistantText(message.content, false); }
+
+	resetTranscript(): void {
+		this.server?.resetTranscript();
 	}
 
 	assistantMessage(message: AssistantMessage): void {
 		if (!this.server) return;
-		const text = boundedAssistantText(message.content);
-		if (text) this.pendingAssistantText = text;
-		else if (message.stopReason !== "toolUse") this.pendingAssistantText = undefined;
+		this.server.assistantText(message.content, true);
 	}
 
 	agentSettled(): void {
 		if (!this.server) return;
-		this.server.agentSettled(this.pendingAssistantText);
-		this.pendingAssistantText = undefined;
+		this.server.agentSettled();
 	}
 
 	private async stopCurrent(ctx?: ExtensionContext): Promise<void> {
 		const server = this.server;
 		this.server = undefined;
-		this.pendingAssistantText = undefined;
 		ctx?.ui.setStatus("codex-lan-voice", undefined);
 		await server?.close();
 	}

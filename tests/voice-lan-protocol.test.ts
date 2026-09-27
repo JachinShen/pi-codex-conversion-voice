@@ -84,7 +84,7 @@ test("LAN server rejects turns after its owning Pi session changes", async () =>
 			sessionManager: { getSessionId: () => activeSessionId },
 		} as never,
 		getConfig: () => ({}) as never,
-		voice: { onInputMuteChange: () => () => {} } as never,
+		voice: { onInputMuteChange: () => () => {}, onTranscript: () => () => {} } as never,
 		resolveAuth: async () => ({}) as never,
 		sendUserMessage: (text) => sentMessages.push(text),
 		ownerSessionId: "owner",

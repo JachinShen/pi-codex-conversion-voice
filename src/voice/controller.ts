@@ -32,6 +32,7 @@ export class CodexVoiceController {
 	};
 	private readonly messages: CodexVoiceSessionMessages;
 	private readonly inputMuteListeners = new Set<(muted: boolean) => void>();
+	private readonly transcriptListeners = new Set<(role: "user" | "assistant", text: string) => void>();
 	private delegationPreflight: (ctx: ExtensionContext, signal: AbortSignal) => Promise<PreparedVoiceDelegation | undefined> = async () => undefined;
 
 	constructor(pi: ExtensionAPI) {
@@ -47,6 +48,8 @@ export class CodexVoiceController {
 					this.runtime.state.session.settleAgentTurn();
 			},
 			onWorking: () => this.renderStatus("working"),
+			onUserTranscript: (text) => this.notifyTranscript("user", text),
+			onAssistantTranscript: (text) => this.notifyTranscript("assistant", text),
 		});
 	}
 
@@ -70,6 +73,16 @@ export class CodexVoiceController {
 			this.runtime.state.type === "conversation" &&
 			this.runtime.state.session.microphoneMuted
 		);
+	}
+	onTranscript(listener: (role: "user" | "assistant", text: string) => void): () => void {
+		this.transcriptListeners.add(listener);
+		return () => this.transcriptListeners.delete(listener);
+	}
+	private notifyTranscript(role: "user" | "assistant", text: string): void {
+		// Display observers must never interrupt audio/delegation callbacks.
+		for (const listener of this.transcriptListeners) {
+			try { listener(role, text); } catch {}
+		}
 	}
 	onInputMuteChange(listener: (muted: boolean) => void): () => void {
 		this.inputMuteListeners.add(listener);
@@ -120,6 +133,10 @@ export class CodexVoiceController {
 	}
 	prepareRealtimePrompt(ctx: ExtensionContext): string | undefined {
 		return prepareRealtimeVoicePrompt(ctx);
+	}
+
+	isCurrentConversation(session: CodexRealtimeConversation): boolean {
+		return this.currentSession() === session;
 	}
 
 	async stopConversation(

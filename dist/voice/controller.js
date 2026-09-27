@@ -11,6 +11,7 @@ export class CodexVoiceController {
     };
     messages;
     inputMuteListeners = new Set();
+    transcriptListeners = new Set();
     delegationPreflight = async () => undefined;
     constructor(pi) {
         this.messages = new CodexVoiceSessionMessages(pi, {
@@ -25,6 +26,8 @@ export class CodexVoiceController {
                     this.runtime.state.session.settleAgentTurn();
             },
             onWorking: () => this.renderStatus("working"),
+            onUserTranscript: (text) => this.notifyTranscript("user", text),
+            onAssistantTranscript: (text) => this.notifyTranscript("assistant", text),
         });
     }
     setDelegationPreflight(preflight) {
@@ -42,6 +45,19 @@ export class CodexVoiceController {
     get inputMuted() {
         return (this.runtime.state.type === "conversation" &&
             this.runtime.state.session.microphoneMuted);
+    }
+    onTranscript(listener) {
+        this.transcriptListeners.add(listener);
+        return () => this.transcriptListeners.delete(listener);
+    }
+    notifyTranscript(role, text) {
+        // Display observers must never interrupt audio/delegation callbacks.
+        for (const listener of this.transcriptListeners) {
+            try {
+                listener(role, text);
+            }
+            catch { }
+        }
     }
     onInputMuteChange(listener) {
         this.inputMuteListeners.add(listener);
@@ -79,6 +95,9 @@ export class CodexVoiceController {
     }
     prepareRealtimePrompt(ctx) {
         return prepareRealtimeVoicePrompt(ctx);
+    }
+    isCurrentConversation(session) {
+        return this.currentSession() === session;
     }
     async stopConversation(session, options) {
         if (this.currentSession() === session)

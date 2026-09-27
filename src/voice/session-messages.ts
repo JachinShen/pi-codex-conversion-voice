@@ -34,6 +34,8 @@ export interface CodexVoiceSessionMessageCallbacks {
 	onDelegation(id: string): void;
 	onDelegationFailed(id: string): void;
 	onWorking(): void;
+	onUserTranscript?(transcript: string): void;
+	onAssistantTranscript?(transcript: string): void;
 }
 
 export class CodexVoiceSessionMessages {
@@ -65,6 +67,7 @@ export class CodexVoiceSessionMessages {
 			REALTIME_USER_TRANSCRIPT_MESSAGE_TYPE,
 			{ transcript },
 		);
+		this.callbacks.onUserTranscript?.(transcript);
 	}
 
 	modeStarted(mode: CodexVoiceMode): void {
@@ -103,6 +106,7 @@ export class CodexVoiceSessionMessages {
 					route: "conversation",
 				},
 			);
+			this.callbacks.onAssistantTranscript?.(turn.input);
 			return Promise.resolve();
 		}
 		const generation = this.contextGeneration;

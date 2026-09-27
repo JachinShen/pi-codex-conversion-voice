@@ -36,7 +36,11 @@ export async function handleLanVoiceHttpRequest(request, response, handlers) {
             response.write("event: ready\ndata: {}\n\n");
             handlers.clients.connectEvents(clientId, response);
             handlers.clients.sendControl(clientId, handlers.draft.snapshot());
-            handlers.clients.sendControl(clientId, handlers.activity.snapshot());
+            // Only identity is replayed. A new browser never receives earlier transcript text.
+            if (handlers.transcript)
+                handlers.clients.sendControl(clientId, handlers.transcript.identity());
+            const activity = handlers.activity.snapshot();
+            handlers.clients.sendControl(clientId, { type: "activity", state: activity.state });
             handlers.clients.sendControl(clientId, { type: "mute", muted: handlers.inputMuted() });
             return;
         }

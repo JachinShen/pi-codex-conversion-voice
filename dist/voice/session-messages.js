@@ -24,6 +24,7 @@ export class CodexVoiceSessionMessages {
     }
     userTranscript(transcript) {
         this.pi.appendEntry(REALTIME_USER_TRANSCRIPT_MESSAGE_TYPE, { transcript });
+        this.callbacks.onUserTranscript?.(transcript);
     }
     modeStarted(mode) {
         if (mode === "dictation") {
@@ -55,6 +56,7 @@ export class CodexVoiceSessionMessages {
                 input: turn.input,
                 route: "conversation",
             });
+            this.callbacks.onAssistantTranscript?.(turn.input);
             return Promise.resolve();
         }
         const generation = this.contextGeneration;

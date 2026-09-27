@@ -7,6 +7,7 @@ import type { CodexVoiceAuth } from "../auth.ts";
 import type { CodexVoiceController } from "../controller.ts";
 import type { CodexRealtimeConversation } from "../conversation/session.ts";
 import { LanVoiceActivity } from "./activity.ts";
+import { LanVoiceTranscript } from "./transcript.ts";
 import { createLanVoiceWebManifest } from "./app-assets.ts";
 import { LanHostRealtimePeer } from "./browser-peer.ts";
 import { LanVoiceBrowserClients, MAX_CONTROL_BYTES } from "./browser-clients.ts";
@@ -24,7 +25,10 @@ export interface CodexLanVoiceServer {
 	readonly ownerSessionId: string;
 	readonly urls: string[];
 	agentStarted(): void;
-	agentSettled(text?: string): void;
+	assistantStarted(): void;
+	assistantText(parts: Array<{ type: string; text?: string | undefined }>, final: boolean): void;
+	resetTranscript(): void;
+	agentSettled(): void;
 	close(): Promise<void>;
 }
 
@@ -48,9 +52,10 @@ export async function startCodexLanVoiceServer(options: {
 		initialWorking: !options.ctx.isIdle(),
 		publish: (message) => clients.broadcastControl(message),
 	});
+	const transcript = new LanVoiceTranscript((event) => clients.broadcastControl(event));
 	const draft = new LanVoiceDraft({
 		publish: (message) => clients.broadcastControl(message),
-		sendMessage: options.sendUserMessage,
+		sendMessage: (text) => { options.sendUserMessage(text); transcript.finalized(text, "user", "text"); },
 	});
 	const dictation = new LanVoiceDictation({
 		resolveAuth: options.resolveAuth,
@@ -129,10 +134,15 @@ export async function startCodexLanVoiceServer(options: {
 		onDictationAudio: (clientId, pcm) => dictation.append(clientId, pcm),
 	});
 	const removeInputMuteListener = options.voice.onInputMuteChange((muted) => clients.broadcastControl({ type: "mute", muted }));
+	const removeTranscriptListener = options.voice.onTranscript((role, text) => {
+		if (activeConversation && options.voice.isCurrentConversation(activeConversation.conversation) && ownerIsActive() && !closing)
+			transcript.finalized(text, role, "voice");
+	});
 
 	const server = createServer({ cert: certificate.cert, key: certificate.key }, (request, response) => {
 		void handleLanVoiceHttpRequest(request, response, {
 			activity,
+			transcript,
 			clients,
 			draft,
 			inputMuted: () => options.voice.inputMuted,
@@ -162,6 +172,7 @@ export async function startCodexLanVoiceServer(options: {
 		await listen(server, options.port ?? PORT);
 	} catch (error) {
 		removeInputMuteListener();
+		removeTranscriptListener();
 		const clientsClosing = clients.close();
 		webSockets.close();
 		server.closeAllConnections();
@@ -175,6 +186,7 @@ export async function startCodexLanVoiceServer(options: {
 	const closeServer = async (): Promise<void> => {
 		closing = true;
 		removeInputMuteListener();
+		removeTranscriptListener();
 		conversationStart?.abort.abort();
 		conversationStart = undefined;
 		clearInterval(heartbeat);
@@ -198,7 +210,10 @@ export async function startCodexLanVoiceServer(options: {
 		ownerSessionId: options.ownerSessionId,
 		urls,
 		agentStarted: () => activity.working(),
-		agentSettled: (text) => activity.settled(text),
+		assistantStarted: () => transcript.assistantStart(),
+		assistantText: (parts, final) => { if (ownerIsActive() && !closing) transcript.assistant(parts, final); },
+		resetTranscript: () => { transcript.reset(); activity.settled(); },
+		agentSettled: () => activity.settled(),
 		close() {
 			closePromise ??= closeServer();
 			return closePromise;

@@ -1,12 +1,10 @@
 import { resolveCodexVoiceAuth } from "../auth.js";
-import { boundedAssistantText } from "./activity.js";
 export class CodexLanVoiceServerController {
     voice;
     getConfig;
     sendUserMessage;
     agentDir;
     server;
-    pendingAssistantText;
     operation = Promise.resolve();
     constructor(voice, getConfig, sendUserMessage, agentDir) {
         this.voice = voice;
@@ -48,28 +46,26 @@ export class CodexLanVoiceServerController {
     agentStarted() {
         if (!this.server)
             return;
-        this.pendingAssistantText = undefined;
         this.server.agentStarted();
+    }
+    assistantStarted() { this.server?.assistantStarted(); }
+    assistantUpdate(message) { this.server?.assistantText(message.content, false); }
+    resetTranscript() {
+        this.server?.resetTranscript();
     }
     assistantMessage(message) {
         if (!this.server)
             return;
-        const text = boundedAssistantText(message.content);
-        if (text)
-            this.pendingAssistantText = text;
-        else if (message.stopReason !== "toolUse")
-            this.pendingAssistantText = undefined;
+        this.server.assistantText(message.content, true);
     }
     agentSettled() {
         if (!this.server)
             return;
-        this.server.agentSettled(this.pendingAssistantText);
-        this.pendingAssistantText = undefined;
+        this.server.agentSettled();
     }
     async stopCurrent(ctx) {
         const server = this.server;
         this.server = undefined;
-        this.pendingAssistantText = undefined;
         ctx?.ui.setStatus("codex-lan-voice", undefined);
         await server?.close();
     }

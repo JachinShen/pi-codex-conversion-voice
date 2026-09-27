@@ -1,6 +1,7 @@
 import { LAN_VOICE_BROWSER_AUDIO_SCRIPT } from "./browser-audio-script.ts";
 import { LAN_VOICE_BROWSER_COMPOSER_SCRIPT } from "./browser-composer-script.ts";
 import { LAN_VOICE_BROWSER_EVENTS_SCRIPT } from "./browser-events-script.ts";
+import { LAN_VOICE_BROWSER_TRANSCRIPT_SCRIPT } from "./browser-transcript-script.ts";
 
 export const LAN_VOICE_BROWSER_SCRIPT = String.raw`
 const clientId = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -14,6 +15,7 @@ const post = async (path, body) => {
 ${LAN_VOICE_BROWSER_COMPOSER_SCRIPT}
 ${LAN_VOICE_BROWSER_AUDIO_SCRIPT}
 ${LAN_VOICE_BROWSER_EVENTS_SCRIPT}
+${LAN_VOICE_BROWSER_TRANSCRIPT_SCRIPT}
 
 const composer = createComposer({
   draft:document.querySelector('#draft'),
@@ -35,9 +37,8 @@ const audio = createAudioController({
 connectBrowserEvents({
   clientId,
   connection:document.querySelector('#connection'),
-  activity:document.querySelector('#activity'),
   activityState:document.querySelector('#activity-state'),
-  activityText:document.querySelector('#activity-text'),
+  transcript:mountTranscript(document.querySelector('#app')),
   composer,
   audio,
 });

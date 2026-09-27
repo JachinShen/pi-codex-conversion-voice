@@ -39,8 +39,14 @@ export class LanVoiceBrowserConnections {
     }
     sendControl(clientId, value) {
         const response = this.eventResponses.get(clientId);
-        if (response && !response.writableEnded)
-            response.write(`data: ${JSON.stringify(value)}\n\n`);
+        if (!response || response.writableEnded)
+            return;
+        // Streaming text must not accumulate an unbounded queue for a stalled browser.
+        if (response.writableLength > 256 * 1024) {
+            response.destroy();
+            return;
+        }
+        response.write(`data: ${JSON.stringify(value)}\n\n`);
     }
     broadcastControl(value) {
         for (const clientId of this.eventResponses.keys())
