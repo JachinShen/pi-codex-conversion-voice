@@ -18,7 +18,7 @@ The release tree starts with the original npm archive (including prebuilt multi-
 
 `browser-playback-fix/` contains the original patch and 14 synthetic PCM regressions. Only the audio worklet source and matching compiled worklet change playback behavior. The bounded playback queue fixes large-chunk truncation and end-of-buffer loss, with explicit buffering/recovery limits. No credentials, audio recordings, server deployment settings or user-specific paths are included.
 
-Root package.json still identifies the upstream package/version for compatibility; `private: true` and a failing prepublishOnly prevent accidental publication under upstream's npm name. Git commit is the fork version. Git installation loads `./dist/index.js` through the `pi.extensions` manifest. `prepare` builds using npm rather than requiring Bun. `prepack` builds; it does not imply the upstream full test suite passed. The monorepo-only extension verification script is removed. Build inputs and dependencies are pinned in package-lock.json; Pi's own Git installer runs npm install, so deployment should additionally use npm ci for strictly locked dependency installation.
+Root package.json still identifies the upstream package/version for compatibility; `private: true` and a failing prepublishOnly prevent accidental publication under upstream's npm name. Git commit is the fork version. Git installation loads `./dist/index.js` through the `pi.extensions` manifest. Production Git installation uses the committed, source-matched `dist` without a `prepare` hook: Pi 0.84.2 defaults to `npm install --omit=dev`, which does not install the development TypeScript compiler. Developers explicitly run `npm run build`; `prepack` still builds and requires development dependencies. Neither implies the upstream full test suite passed. The monorepo-only extension verification script is removed. Build inputs and dependencies are pinned in package-lock.json; the installation regression deliberately uses Pi's real default command rather than substituting `npm ci` or global settings.
 
 ## Validation
 
@@ -26,12 +26,18 @@ Unpack the original 3.0.10 npm archive into a separate directory, then run:
 
 ```sh
 npm ci --ignore-scripts
+npm run typecheck
 npm run build
+git diff --exit-code -- dist
 PI_VOICE_UPSTREAM=/absolute/path/to/pristine-package npm run test:browser-playback
 npm pack
+# After committing: clean clone of HEAD, default production install, inert entry import.
+npm run test:production-install
+# Also test the published exact ref via ordinary HTTPS clone:
+npm run test:production-install -- https://github.com/JachinShen/pi-codex-conversion-voice.git FULL_COMMIT_SHA
 ```
 
-The tests only use synthetic PCM. Compare the resulting worklet template in source and dist and verify all native helpers against the original archive. Hardware/live Realtime checks are separate and opt-in. A user has reported normal listening with the browser fix; that does not identify which launch override or runtime served that session.
+The production-install regression runs from a development checkout with `npm ci` completed. Its clean production clone receives only `npm install --omit=dev`; for the inert Node entry import, a resolution hook supplies declared Pi peer dependencies from the development checkout, modeling Pi's bundled-peer loader without adding development dependencies to the clone. It never invokes the extension entry function. The tests only use synthetic PCM. Compare the resulting worklet template in source and dist and verify all native helpers against the original archive. Hardware/live Realtime checks are separate and opt-in. A user has reported normal listening with the browser fix; that does not identify which launch override or runtime served that session.
 
 ## Installation after owner approval and push
 

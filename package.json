@@ -62,7 +62,6 @@
     "publish:dev": "npm publish --tag dev",
     "release:dev": "npm version prerelease --preid dev && npm publish --tag dev",
     "prepack": "npm run build",
-    "prepare": "npm run build",
     "prepublishOnly": "node -e \"throw new Error('Git-only fork; npm publishing disabled')\"",
     "build:apply-patch": "node scripts/build-apply-patch-binary.mjs",
     "sync:apply-patch-source": "node scripts/sync-apply-patch-source.mjs",
@@ -72,7 +71,8 @@
     "build:code-mode-host": "node scripts/code-mode/build-host.mjs",
     "build:voice-helper": "node scripts/build-voice-helper.mjs",
     "verify:code-mode-host-assets": "node scripts/code-mode/verify-host-assets.mjs",
-    "test:browser-playback": "node --test browser-playback-fix/test.mjs"
+    "test:browser-playback": "node --test browser-playback-fix/test.mjs",
+    "test:production-install": "node scripts/test-production-install.mjs"
   },
   "publishConfig": {
     "access": "public"
