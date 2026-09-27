@@ -1,0 +1,8 @@
+{
+  "name": "@howaboua/pi-codex-conversion",
+  "version": "3.0.10",
+  "files": {
+    "src/voice/lan/audio-worklet.ts": "fb237399462c4fea7493f970fdd87f70cd3ab06cc440739f848b8bf28967e893",
+    "dist/voice/lan/audio-worklet.js": "ed9301f49279ad32caf5bd75dffed534aaffb27d5818d9a397ed3181d37406f7"
+  }
+}

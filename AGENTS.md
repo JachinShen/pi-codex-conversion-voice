@@ -1,0 +1,14 @@
+- Keep Pi behavior as close as practical to the Codex toolkit; document intentional differences.
+- Responses transport recovery follows Codex: initial generation plus five fresh full-request WebSocket retries, then sticky SSE for the session; 426 and WebSocket close 1009 fall back immediately.
+- Pi intentionally retries `server_is_overloaded` and `slow_down` across WebSocket/SSE with a shared three-minute wait budget.
+- Streamed rate-limit delays are exact within a shared three-minute budget; longer delays fail instead of retrying early.
+- Before npm, publish, release, or merge work, compare `src/providers/openai-codex-custom-provider.ts` with Pi's stock `openai-codex-responses` provider: request shape, transport/headers, reasoning/service tier, retry, stream termination, and touched behavior.
+- Structured mode uses flat TypeScript tools over standard Responses. GPT-5.6 Code Mode uses `exec`/`wait` over Responses Lite.
+- Keep prompt guidance short and argv-shaped.
+- Native runners execute bundled helpers directly. Rebuild for the local platform and use the checkout; never patch installed npm files.
+- For native GitHub builds, run `gh run watch <id> --exit-status` directly and wait near the expected 10–15 minutes. Never wrap it in polling loops, background shells, or temporary log redirection.
+- `tools.customRustBinariesDir` is the shared filename-based override for tool and voice helpers; native startup incompatibilities point there without dumping loader noise.
+- Vendored apply-patch engine, path-uri, and absolute-path sources track one Codex commit. Pi-owned changes belong only in `standalone_executable.rs` and the `pi-apply-patch-fs` adapter.
+- Do not accept review-driven drift from stock Pi behavior unless backend-verified or intentional.
+- Native compaction supports only OpenAI Codex and explicitly configured OpenAI/Codex passthrough proxies; V2 must preserve raw Responses output-item access rather than delegate to arbitrary registered provider streams.
+- After TypeScript topology changes, run root `bun run knip`; it enforces file, dependency, cycle, and export-surface hygiene.

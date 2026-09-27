@@ -1,0 +1,16 @@
+import { isVoiceContextExcludedMessage } from "../../voice/context-visibility.js";
+import { NATIVE_COMPACTION_DISPLAY_MESSAGE_TYPE } from "../compaction/types.js";
+const ADAPTER_CONTEXT_EXCLUDED_CUSTOM_MESSAGE_TYPES = new Set([
+    NATIVE_COMPACTION_DISPLAY_MESSAGE_TYPE,
+]);
+export function isProviderContextExcludedMessage(message) {
+    return isVoiceContextExcludedMessage(message)
+        || (message.role === "custom" && typeof message.customType === "string" && ADAPTER_CONTEXT_EXCLUDED_CUSTOM_MESSAGE_TYPES.has(message.customType));
+}
+export function isProviderContextExcludedCustomMessageEntry(entry) {
+    return isProviderContextExcludedMessage({
+        role: "custom",
+        customType: entry.customType,
+        content: entry.content,
+    });
+}
